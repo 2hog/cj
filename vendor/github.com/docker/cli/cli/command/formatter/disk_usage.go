@@ -16,6 +16,15 @@ const (
 	defaultDiskUsageContainerTableFormat = "table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.LocalVolumes}}\t{{.Size}}\t{{.RunningFor}} ago\t{{.Status}}\t{{.Names}}"
 	defaultDiskUsageVolumeTableFormat    = "table {{.Name}}\t{{.Links}}\t{{.Size}}"
 	defaultDiskUsageTableFormat          = "table {{.Type}}\t{{.TotalCount}}\t{{.Active}}\t{{.Size}}\t{{.Reclaimable}}"
+	defaultBuildCacheVerboseFormat       = `
+ID: {{.ID}}
+Description: {{.Description}}
+Mutable: {{.Mutable}}
+Size: {{.Size}}
+CreatedAt: {{.CreatedAt}}
+LastUsedAt: {{.LastUsedAt}}
+UsageCount: {{.UsageCount}}
+`
 
 	typeHeader        = "TYPE"
 	totalHeader       = "TOTAL"
@@ -34,6 +43,7 @@ type DiskUsageContext struct {
 	Images      []*types.ImageSummary
 	Containers  []*types.Container
 	Volumes     []*types.Volume
+	BuildCache  []*types.BuildCache
 	BuilderSize int64
 }
 
@@ -100,6 +110,7 @@ func (ctx *DiskUsageContext) Write() (err error) {
 
 	err = ctx.contextFormat(tmpl, &diskUsageBuilderContext{
 		builderSize: ctx.BuilderSize,
+		buildCache:  ctx.BuildCache,
 	})
 	if err != nil {
 		return err
@@ -118,11 +129,11 @@ func (ctx *DiskUsageContext) Write() (err error) {
 	return err
 }
 
-func (ctx *DiskUsageContext) verboseWrite() (err error) {
+func (ctx *DiskUsageContext) verboseWrite() error {
 	// First images
 	tmpl, err := ctx.startSubsection(defaultDiskUsageImageTableFormat)
 	if err != nil {
-		return
+		return err
 	}
 
 	ctx.Output.Write([]byte("Images space usage:\n\n"))
@@ -141,14 +152,14 @@ func (ctx *DiskUsageContext) verboseWrite() (err error) {
 			}
 		}
 
-		err = ctx.contextFormat(tmpl, &imageContext{
+		err := ctx.contextFormat(tmpl, &imageContext{
 			repo:  repo,
 			tag:   tag,
 			trunc: true,
 			i:     *i,
 		})
 		if err != nil {
-			return
+			return err
 		}
 	}
 	ctx.postFormat(tmpl, newImageContext())
@@ -157,17 +168,14 @@ func (ctx *DiskUsageContext) verboseWrite() (err error) {
 	ctx.Output.Write([]byte("\nContainers space usage:\n\n"))
 	tmpl, err = ctx.startSubsection(defaultDiskUsageContainerTableFormat)
 	if err != nil {
-		return
+		return err
 	}
 	for _, c := range ctx.Containers {
 		// Don't display the virtual size
 		c.SizeRootFs = 0
-		err = ctx.contextFormat(tmpl, &containerContext{
-			trunc: true,
-			c:     *c,
-		})
+		err := ctx.contextFormat(tmpl, &containerContext{trunc: true, c: *c})
 		if err != nil {
-			return
+			return err
 		}
 	}
 	ctx.postFormat(tmpl, newContainerContext())
@@ -176,21 +184,25 @@ func (ctx *DiskUsageContext) verboseWrite() (err error) {
 	ctx.Output.Write([]byte("\nLocal Volumes space usage:\n\n"))
 	tmpl, err = ctx.startSubsection(defaultDiskUsageVolumeTableFormat)
 	if err != nil {
-		return
+		return err
 	}
 	for _, v := range ctx.Volumes {
-		err = ctx.contextFormat(tmpl, &volumeContext{
-			v: *v,
-		})
-		if err != nil {
-			return
+		if err := ctx.contextFormat(tmpl, &volumeContext{v: *v}); err != nil {
+			return err
 		}
 	}
 	ctx.postFormat(tmpl, newVolumeContext())
 
 	// And build cache
 	fmt.Fprintf(ctx.Output, "\nBuild cache usage: %s\n\n", units.HumanSize(float64(ctx.BuilderSize)))
-	return
+
+	t := template.Must(template.New("buildcache").Parse(defaultBuildCacheVerboseFormat))
+
+	for _, v := range ctx.BuildCache {
+		t.Execute(ctx.Output, *v)
+	}
+
+	return nil
 }
 
 type diskUsageImagesContext struct {
@@ -372,6 +384,7 @@ func (c *diskUsageVolumesContext) Reclaimable() string {
 type diskUsageBuilderContext struct {
 	HeaderContext
 	builderSize int64
+	buildCache  []*types.BuildCache
 }
 
 func (c *diskUsageBuilderContext) MarshalJSON() ([]byte, error) {
@@ -383,11 +396,17 @@ func (c *diskUsageBuilderContext) Type() string {
 }
 
 func (c *diskUsageBuilderContext) TotalCount() string {
-	return ""
+	return fmt.Sprintf("%d", len(c.buildCache))
 }
 
 func (c *diskUsageBuilderContext) Active() string {
-	return ""
+	numActive := 0
+	for _, bc := range c.buildCache {
+		if bc.InUse {
+			numActive++
+		}
+	}
+	return fmt.Sprintf("%d", numActive)
 }
 
 func (c *diskUsageBuilderContext) Size() string {
@@ -395,5 +414,12 @@ func (c *diskUsageBuilderContext) Size() string {
 }
 
 func (c *diskUsageBuilderContext) Reclaimable() string {
-	return c.Size()
+	var inUseBytes int64
+	for _, bc := range c.buildCache {
+		if bc.InUse {
+			inUseBytes += bc.Size
+		}
+	}
+
+	return units.HumanSize(float64(c.builderSize - inUseBytes))
 }

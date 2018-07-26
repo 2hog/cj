@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"errors"
 
 	"github.com/docker/cli/cli"
@@ -8,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types"
 	apiclient "github.com/docker/docker/client"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 // NewNodeCommand returns a cobra command for `node` subcommands
@@ -18,7 +18,10 @@ func NewNodeCommand(dockerCli command.Cli) *cobra.Command {
 		Short: "Manage Swarm nodes",
 		Args:  cli.NoArgs,
 		RunE:  command.ShowHelp(dockerCli.Err()),
-		Tags:  map[string]string{"version": "1.24"},
+		Annotations: map[string]string{
+			"version": "1.24",
+			"swarm":   "",
+		},
 	}
 	cmd.AddCommand(
 		newDemoteCommand(dockerCli),

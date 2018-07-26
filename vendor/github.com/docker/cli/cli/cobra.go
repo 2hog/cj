@@ -22,9 +22,11 @@ func SetupRootCommand(rootCmd *cobra.Command) {
 	rootCmd.SetHelpTemplate(helpTemplate)
 	rootCmd.SetFlagErrorFunc(FlagErrorFunc)
 	rootCmd.SetHelpCommand(helpCommand)
+	rootCmd.SetVersionTemplate("Docker version {{.Version}}\n")
 
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "Print usage")
 	rootCmd.PersistentFlags().MarkShorthandDeprecated("help", "please use --help")
+	rootCmd.PersistentFlags().Lookup("help").Hidden = true
 }
 
 // FlagErrorFunc prints an error message which matches the format of the
@@ -100,7 +102,7 @@ func managementSubCommands(cmd *cobra.Command) []*cobra.Command {
 var usageTemplate = `Usage:
 
 {{- if not .HasSubCommands}}	{{.UseLine}}{{end}}
-{{- if .HasSubCommands}}	{{ .CommandPath}} COMMAND{{end}}
+{{- if .HasSubCommands}}	{{ .CommandPath}}{{- if .HasAvailableFlags}} [OPTIONS]{{end}} COMMAND{{end}}
 
 {{ .Short | trim }}
 
@@ -116,7 +118,7 @@ Examples:
 {{ .Example }}
 
 {{- end}}
-{{- if .HasFlags}}
+{{- if .HasAvailableFlags}}
 
 Options:
 {{ wrappedFlagUsages . | trimRightSpace}}

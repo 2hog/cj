@@ -2,13 +2,12 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"sort"
 	"strconv"
 	"strings"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/cli/cli"
 	"github.com/docker/cli/cli/command"
@@ -37,7 +36,7 @@ type logsOptions struct {
 	target string
 }
 
-func newLogsCommand(dockerCli *command.DockerCli) *cobra.Command {
+func newLogsCommand(dockerCli command.Cli) *cobra.Command {
 	var opts logsOptions
 
 	cmd := &cobra.Command{
@@ -48,7 +47,7 @@ func newLogsCommand(dockerCli *command.DockerCli) *cobra.Command {
 			opts.target = args[0]
 			return runLogs(dockerCli, &opts)
 		},
-		Tags: map[string]string{"version": "1.29"},
+		Annotations: map[string]string{"version": "1.29"},
 	}
 
 	flags := cmd.Flags()
@@ -68,7 +67,7 @@ func newLogsCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
+func runLogs(dockerCli command.Cli, opts *logsOptions) error {
 	ctx := context.Background()
 
 	options := types.ContainerLogsOptions{
@@ -97,12 +96,12 @@ func runLogs(dockerCli *command.DockerCli, opts *logsOptions) error {
 	service, _, err := cli.ServiceInspectWithRaw(ctx, opts.target, types.ServiceInspectOptions{})
 	if err != nil {
 		// if it's any error other than service not found, it's Real
-		if !client.IsErrServiceNotFound(err) {
+		if !client.IsErrNotFound(err) {
 			return err
 		}
 		task, _, err := cli.TaskInspectWithRaw(ctx, opts.target)
 		if err != nil {
-			if client.IsErrTaskNotFound(err) {
+			if client.IsErrNotFound(err) {
 				// if the task isn't found, rewrite the error to be clear
 				// that we looked for services AND tasks and found none
 				err = fmt.Errorf("no such task or service: %v", opts.target)

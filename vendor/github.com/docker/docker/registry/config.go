@@ -1,4 +1,4 @@
-package registry
+package registry // import "github.com/docker/docker/registry"
 
 import (
 	"fmt"
@@ -45,9 +45,6 @@ var (
 	// IndexName is the name of the index
 	IndexName = "docker.io"
 
-	// NotaryServer is the endpoint serving the Notary trust server
-	NotaryServer = "https://notary.docker.io"
-
 	// DefaultV2Registry is the URI of the default v2 registry
 	DefaultV2Registry = &url.URL{
 		Scheme: "https",
@@ -60,7 +57,7 @@ var (
 	// not have the correct form
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 
-	emptyServiceConfig = newServiceConfig(ServiceOptions{})
+	emptyServiceConfig, _ = newServiceConfig(ServiceOptions{})
 )
 
 var (
@@ -71,22 +68,27 @@ var (
 var lookupIP = net.LookupIP
 
 // newServiceConfig returns a new instance of ServiceConfig
-func newServiceConfig(options ServiceOptions) *serviceConfig {
+func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
 	config := &serviceConfig{
 		ServiceConfig: registrytypes.ServiceConfig{
 			InsecureRegistryCIDRs: make([]*registrytypes.NetIPNet, 0),
-			IndexConfigs:          make(map[string]*registrytypes.IndexInfo, 0),
+			IndexConfigs:          make(map[string]*registrytypes.IndexInfo),
 			// Hack: Bypass setting the mirrors to IndexConfigs since they are going away
 			// and Mirrors are only for the official registry anyways.
 		},
 		V2Only: options.V2Only,
 	}
+	if err := config.LoadAllowNondistributableArtifacts(options.AllowNondistributableArtifacts); err != nil {
+		return nil, err
+	}
+	if err := config.LoadMirrors(options.Mirrors); err != nil {
+		return nil, err
+	}
+	if err := config.LoadInsecureRegistries(options.InsecureRegistries); err != nil {
+		return nil, err
+	}
 
-	config.LoadAllowNondistributableArtifacts(options.AllowNondistributableArtifacts)
-	config.LoadMirrors(options.Mirrors)
-	config.LoadInsecureRegistries(options.InsecureRegistries)
-
-	return config
+	return config, nil
 }
 
 // LoadAllowNondistributableArtifacts loads allow-nondistributable-artifacts registries into config.
@@ -171,7 +173,7 @@ func (config *serviceConfig) LoadInsecureRegistries(registries []string) error {
 	originalIndexInfos := config.ServiceConfig.IndexConfigs
 
 	config.ServiceConfig.InsecureRegistryCIDRs = make([]*registrytypes.NetIPNet, 0)
-	config.ServiceConfig.IndexConfigs = make(map[string]*registrytypes.IndexInfo, 0)
+	config.ServiceConfig.IndexConfigs = make(map[string]*registrytypes.IndexInfo)
 
 skip:
 	for _, r := range registries {

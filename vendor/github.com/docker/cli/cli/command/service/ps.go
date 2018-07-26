@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"strings"
 
 	"github.com/docker/cli/cli"
@@ -14,7 +15,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 type psOptions struct {
@@ -68,6 +68,9 @@ func runPS(dockerCli command.Cli, options psOptions) error {
 	format := options.format
 	if len(format) == 0 {
 		format = task.DefaultFormat(dockerCli.ConfigFile(), options.quiet)
+	}
+	if options.quiet {
+		options.noTrunc = true
 	}
 	if err := task.Print(ctx, dockerCli, tasks, idresolver.New(client, options.noResolve), !options.noTrunc, options.quiet, format); err != nil {
 		return err

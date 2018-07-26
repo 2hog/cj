@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/hex"
 
 	"github.com/docker/cli/cli/command"
@@ -8,15 +9,14 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/registry"
-	"github.com/docker/notary/tuf/data"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
+	"github.com/theupdateframework/notary/tuf/data"
 )
 
 func resolveServiceImageDigestContentTrust(dockerCli command.Cli, service *swarm.ServiceSpec) error {
-	if !command.IsTrusted() {
+	if !dockerCli.ContentTrustEnabled() {
 		// When not using content trust, digest resolution happens later when
 		// contacting the registry to retrieve image information.
 		return nil
@@ -59,7 +59,7 @@ func trustedResolveDigest(ctx context.Context, cli command.Cli, ref reference.Na
 
 	authConfig := command.ResolveAuthConfig(ctx, cli, repoInfo.Index)
 
-	notaryRepo, err := trust.GetNotaryRepository(cli, repoInfo, authConfig, "pull")
+	notaryRepo, err := trust.GetNotaryRepository(cli.In(), cli.Out(), command.UserAgent(), repoInfo, &authConfig, "pull")
 	if err != nil {
 		return nil, errors.Wrap(err, "error establishing connection to trust repository")
 	}
