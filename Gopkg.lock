@@ -106,7 +106,6 @@
   revision = "0dae0957e5fe3156c265d22bef4cba9efbf388e2"
 
 [[projects]]
-  branch = "master"
   name = "github.com/docker/docker"
   packages = [
     "api",
@@ -147,7 +146,7 @@
     "registry",
     "registry/resumable"
   ]
-  revision = "c3a02077149ea8ee1d53b2b60a3d36c29d1505f8"
+  revision = "b711437bbd8596312c962d4189e9ad4d2108c2dc"
 
 [[projects]]
   name = "github.com/docker/docker-credential-helpers"
@@ -181,10 +180,9 @@
   revision = "9461782956ad83b30282bf90e31fa6a70c255ba9"
 
 [[projects]]
-  branch = "master"
   name = "github.com/docker/go-metrics"
   packages = ["."]
-  revision = "399ea8c73916000c64c2c76e8da00ca82f8387ab"
+  revision = "d466d4f6fd960e01820085bd7e1a24426ee7ef18"
 
 [[projects]]
   name = "github.com/docker/go-units"
@@ -315,10 +313,7 @@
 
 [[projects]]
   name = "github.com/prometheus/client_golang"
-  packages = [
-    "prometheus",
-    "prometheus/promhttp"
-  ]
+  packages = ["prometheus"]
   revision = "c5b7fccd204277076155f10851dad72b76a49317"
   version = "v0.8.0"
 
@@ -401,10 +396,9 @@
   revision = "bd5ef7bd5415a7ac448318e64f11a24cd21e594b"
 
 [[projects]]
-  branch = "master"
   name = "github.com/xeipuuv/gojsonschema"
   packages = ["."]
-  revision = "b84684d0e066369f2a7a8a525f3080909ed4ea6b"
+  revision = "93e72a773fade158921402d6a24c819b48aba29d"
 
 [[projects]]
   branch = "master"
@@ -522,6 +516,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "aaf9b3402e16a29fe2b484f09a754de779985a18cc931c4257273869e596f118"
+  inputs-digest = "ec772c66a4f7cd34c9ecfd1addcf14ed9d7855be54807538276c4cfecfc06e23"
   solver-name = "gps-cdcl"
   solver-version = 1

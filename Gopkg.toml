@@ -30,7 +30,7 @@
   version = "18.6.0-ce-rc3"
 
 [[constraint]]
-  branch = "master"
+  revision = "b711437bbd8596312c962d4189e9ad4d2108c2dc"
   name = "github.com/docker/docker"
 
 [[constraint]]
@@ -44,6 +44,14 @@
 [[constraint]]
   branch = "master"
   name = "golang.org/x/net"
+
+[[override]]
+  name = "github.com/xeipuuv/gojsonschema"
+  revision = "93e72a773fade158921402d6a24c819b48aba29d"
+
+[[override]]
+  name = "github.com/docker/go-metrics"
+  revision = "d466d4f6fd960e01820085bd7e1a24426ee7ef18"
 
 [prune]
   go-tests = true
