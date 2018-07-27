@@ -36,6 +36,8 @@ func randSeq(n int) string {
 }
 
 func main() {
+
+	// parse flags
 	var serviceName string
 	var composeFile string
 	var stackName string
@@ -46,6 +48,13 @@ func main() {
 	flag.StringVarP(&stackName, "stack", "S", "", "set the stack to use for the job")
 	flag.BoolVarP(&global, "global", "g", false, "run the job in all nodes")
 	flag.Parse()
+	args := flag.Args()
+
+	if len(flag.Args()) == 0 {
+		flag.Usage()
+		return
+	}
+
 	if len(serviceName) == 0 {
 		fmt.Printf("Service is needed, please use the --service flag\n")
 		os.Exit(42)
@@ -58,50 +67,54 @@ func main() {
 		fmt.Printf("Stack is needed, please use the --stack flag\n")
 		os.Exit(42)
 	}
-	args := flag.Args()
 
+	// run cj
 	exitCode, err := cj(composeFile, stackName, serviceName, args, global)
 	if err != nil {
-		fmt.Printf("Could not create service, %s", err)
+		fmt.Printf("Could not run job %s\n", err)
 	}
+
 	os.Exit(exitCode)
 }
 
 func cj(composeFile string, stackName string, serviceName string, args []string, global bool) (int, error) {
+	// initialize the client
 	cli, err := apiclient.NewEnvClient()
 	if err != nil {
 		return 1, err
 	}
 	ctx := context.Background()
 
+	// get the config
 	configDetails, err := getConfigDetails(composeFile)
 	if err != nil {
 		return 2, err
 	}
-
 	config, err := loader.Load(configDetails)
 	if err != nil {
 		return 3, err
 	}
 
+	// check if connected in a Swarm manager
 	if err := checkDaemonIsSwarmManager(ctx, cli); err != nil {
 		return 4, err
 	}
 
+	// get the defined services
 	namespace := convert.NewNamespace(stackName)
-
 	services, err := convert.Services(namespace, config, cli)
 	if err != nil {
-		return -5, err
+		return 5, err
 	}
 
+	// find the given service and run the job
 	for _, service := range services {
 		if service.Name == namespace.Name()+"_"+serviceName {
 			return runJob(ctx, cli, service, args, global)
 		}
 	}
 
-	return 0, errors.Errorf("Given service \"%s\" was not found in the compose file", serviceName)
+	return 0, errors.Errorf("service \"%s\" was not found in the compose file", serviceName)
 }
 
 func getConfigDetails(composefile string) (composetypes.ConfigDetails, error) {
@@ -204,7 +217,9 @@ func runJob(ctx context.Context, cli apiclient.CommonAPIClient, service swarm.Se
 	service.Mode = serviceMode
 
 	// run the service
-	serviceResponse, err := cli.ServiceCreate(ctx, service, types.ServiceCreateOptions{})
+	serviceResponse, err := cli.ServiceCreate(ctx, service, types.ServiceCreateOptions{
+		QueryRegistry: true,
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -234,7 +249,7 @@ func waitOnTasks(ctx context.Context, cli apiclient.CommonAPIClient, taskFilters
 			continue
 		}
 		for _, task := range tasks {
-			if task.Status.State != swarm.TaskStateComplete && task.Status.State != swarm.TaskStateFailed {
+			if task.Status.State != swarm.TaskStateComplete && task.Status.State != swarm.TaskStateFailed && task.Status.State != swarm.TaskStateRejected {
 				finished = false
 				break
 			}
